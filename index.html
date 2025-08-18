@@ -63,7 +63,7 @@ function addLogEntry(name, location) {
   const logEntry = {
     name,
     location,
-    timestamp: now.toLocaleString(),
+    timestamp: now.toLocaleTimeString(), // Only time
     iso: now.toISOString()
   };
   const logs = loadLogs();
@@ -78,21 +78,51 @@ function getTodayLogs() {
   return logs.filter(entry => entry.iso.slice(0, 10) === todayDate);
 }
 
+// For displaying: group logs by location, avoid duplicate names, show only time per check
+function groupLogsForDisplay(logs) {
+  const grouped = {};
+  locations.forEach(loc => { grouped[loc] = []; });
+  logs.forEach(entry => {
+    if (grouped[entry.location]) {
+      // If name is already listed for this location, skip
+      if (!grouped[entry.location].some(e => e.name === entry.name)) {
+        grouped[entry.location].push({ name: entry.name, times: [entry.timestamp] });
+      } else {
+        // Add time to the name's times array
+        const person = grouped[entry.location].find(e => e.name === entry.name);
+        person.times.push(entry.timestamp);
+      }
+    }
+  });
+  return grouped;
+}
+
 function renderLogs() {
   const logs = getTodayLogs();
   const logList = document.getElementById('log-list');
-  logList.innerHTML = '<h3>Log for Today</h3>';
+  const todayStr = new Date().toLocaleDateString();
+  logList.innerHTML = `<h3>Log for Today - ${todayStr}</h3>`;
   if (logs.length === 0) {
     logList.innerHTML += '<div class="no-entries">No entries yet.</div>';
     return;
   }
-  logs.forEach(entry => {
-    logList.innerHTML += `
-      <div class="log-entry">
-        <strong>${entry.name}</strong> checked <strong>${entry.location}</strong>
-        <span class="timestamp">(${entry.timestamp})</span>
-      </div>
-    `;
+
+  const grouped = groupLogsForDisplay(logs);
+  locations.forEach(loc => {
+    const entries = grouped[loc];
+    logList.innerHTML += `<div class="log-entry"><strong>${loc}</strong><br>`;
+    if (entries.length === 0) {
+      logList.innerHTML += '<span class="timestamp">No entries</span>';
+    } else {
+      entries.forEach(person => {
+        logList.innerHTML += `<span>${person.name}`;
+        if (person.times.length > 0) {
+          logList.innerHTML += `: <span class="timestamp">${person.times.join(', ')}</span>`;
+        }
+        logList.innerHTML += `</span><br>`;
+      });
+    }
+    logList.innerHTML += `</div>`;
   });
 }
 
@@ -113,26 +143,14 @@ function makeButtons(arr, parentId) {
   });
 }
 
-// Group logs by location for PDF export
-function groupLogsByLocation(logs) {
-  const grouped = {};
-  locations.forEach(loc => { grouped[loc] = []; });
-  logs.forEach(entry => {
-    if (grouped[entry.location]) {
-      grouped[entry.location].push(entry);
-    }
-  });
-  return grouped;
-}
-
-// Export log as PDF
+// For PDF: group logs by location, only unique names per location, show times for each name, date at top
 function exportLogPDF() {
   const logs = getTodayLogs();
   if (logs.length === 0) {
     alert('No log entries to export.');
     return;
   }
-  const grouped = groupLogsByLocation(logs);
+  const grouped = groupLogsForDisplay(logs);
 
   // jsPDF setup
   const { jsPDF } = window.jspdf;
@@ -159,8 +177,12 @@ function exportLogPDF() {
       doc.setTextColor(0);
       y += 7;
     } else {
-      entries.forEach(entry => {
-        doc.text(`${entry.name} (${entry.timestamp})`, 18, y);
+      entries.forEach(person => {
+        let line = `${person.name}`;
+        if (person.times.length > 0) {
+          line += `: ${person.times.join(', ')}`;
+        }
+        doc.text(line, 18, y);
         y += 7;
         if (y > 278) { // Prevent writing below bottom margin
           doc.addPage();
