@@ -5,17 +5,46 @@
   <title>Floor Check Log</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f6f6f6; margin: 0; padding: 0; }
-    .container { max-width: 500px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+    .container { max-width: 900px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
     h1 { font-size: 1.6em; margin-bottom: 16px; }
     label { font-weight: bold; display: block; margin-bottom: 8px; }
     input[type="text"] { width: 100%; padding: 8px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px;}
-    .section-title { margin: 18px 0 8px 0; font-weight: bold; }
-    .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;}
-    button { padding: 10px 18px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; font-size: 1em; transition: background 0.2s;}
-    button:active { background: #1565c0; }
-    #log-list { margin-top: 24px; }
-    .log-entry { background: #e9f4fe; margin-bottom: 8px; padding: 10px; border-radius: 4px; font-size: 0.95em;}
-    .timestamp { color: #888; font-size: 0.9em; }
+    .locations-row { display: flex; flex-wrap: wrap; gap: 24px; justify-content: flex-start; margin-bottom: 30px;}
+    .location-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 110px;
+      background: #e9f4fe;
+      padding: 14px 8px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      margin-bottom: 0;
+    }
+    .location-btn {
+      padding: 8px 0;
+      width: 95px;
+      border: none;
+      border-radius: 4px;
+      background: #1976d2;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.98em;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    .location-btn:active { background: #1565c0; }
+    .log-entry {
+      background: #fff;
+      border-radius: 4px;
+      padding: 8px;
+      width: 100%;
+      text-align: center;
+      font-size: 0.95em;
+      margin-bottom: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .timestamp { color: #888; font-size: 0.92em; }
     .export-btn { background: #388e3c; margin-top: 18px; }
     .export-btn:active { background: #2e7031; }
   </style>
@@ -26,22 +55,18 @@
   <label for="team-member">Team Member</label>
   <input type="text" id="team-member" placeholder="Enter your name..." autocomplete="off">
 
-  <div class="section-title">Cinemas</div>
-  <div class="button-group" id="cinema-btns"></div>
-
-  <div class="section-title">Bathrooms</div>
-  <div class="button-group" id="bathroom-btns"></div>
+  <div class="locations-row" id="locations-row"></div>
 
   <button class="export-btn" id="export-btn">Export Log (CSV)</button>
-
-  <div id="log-list"></div>
 </div>
 
 <script>
 const cinemas = ['Vmax', 'Screen X', 'Cinema 3', 'Cinema 4', 'Cinema 5', 'Cinema 6', 'Cinema 7', 'Cinema 8'];
 const bathrooms = ['Male bathroom', 'Female bathroom', 'Access bathroom'];
+const locations = [...cinemas, ...bathrooms];
 const logKey = 'floorCheckLog';
 
+// Load logs from localStorage
 function loadLogs() {
   try {
     return JSON.parse(localStorage.getItem(logKey)) || [];
@@ -50,10 +75,12 @@ function loadLogs() {
   }
 }
 
+// Save logs to localStorage
 function saveLogs(logs) {
   localStorage.setItem(logKey, JSON.stringify(logs));
 }
 
+// Add a log entry
 function addLogEntry(name, location) {
   const now = new Date();
   const logEntry = {
@@ -65,37 +92,49 @@ function addLogEntry(name, location) {
   const logs = loadLogs();
   logs.unshift(logEntry); // newest on top
   saveLogs(logs);
-  renderLogs();
+  renderLocationLogs();
 }
 
-function renderLogs() {
+// Render the row of location buttons and latest logs
+function renderLocationLogs() {
   const logs = loadLogs();
-  const logList = document.getElementById('log-list');
-  logList.innerHTML = '<h3>Log for Today</h3>' + (logs.length === 0 ? '<div>No entries yet.</div>' : '');
-  logs.forEach(entry => {
-    logList.innerHTML += `
-      <div class="log-entry">
-        <strong>${entry.name}</strong> checked <strong>${entry.location}</strong>
-        <span class="timestamp">(${entry.timestamp})</span>
-      </div>
-    `;
-  });
-}
+  const row = document.getElementById('locations-row');
+  row.innerHTML = '';
 
-function makeButtons(arr, parentId, type) {
-  const parent = document.getElementById(parentId);
-  arr.forEach(item => {
+  locations.forEach(loc => {
+    // Find most recent log for this location
+    const latestLog = logs.find(entry => entry.location === loc);
+    // Create card
+    const card = document.createElement('div');
+    card.className = 'location-card';
+
+    // Location button
     const btn = document.createElement('button');
-    btn.textContent = item;
+    btn.className = 'location-btn';
+    btn.textContent = loc;
     btn.onclick = () => {
       const name = document.getElementById('team-member').value.trim();
       if (!name) {
         alert('Please enter your name.');
         return;
       }
-      addLogEntry(name, item);
+      addLogEntry(name, loc);
     };
-    parent.appendChild(btn);
+
+    card.appendChild(btn);
+
+    // Log display
+    const logDiv = document.createElement('div');
+    logDiv.className = 'log-entry';
+    if (latestLog) {
+      logDiv.innerHTML = `<strong>${latestLog.name}</strong><br>
+        <span class="timestamp">${latestLog.timestamp}</span>`;
+    } else {
+      logDiv.innerHTML = `<span style="color:#888;">No check yet</span>`;
+    }
+    card.appendChild(logDiv);
+
+    row.appendChild(card);
   });
 }
 
@@ -123,9 +162,7 @@ function exportLogCSV() {
 }
 
 // Setup
-makeButtons(cinemas, 'cinema-btns', 'cinema');
-makeButtons(bathrooms, 'bathroom-btns', 'bathroom');
-renderLogs();
+renderLocationLogs();
 document.getElementById('export-btn').onclick = exportLogCSV;
 </script>
 </body>
