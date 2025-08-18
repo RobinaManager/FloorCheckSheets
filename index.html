@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Floor Check Log</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f6f6f6; margin: 0; padding: 0; }
+    .container { max-width: 500px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+    h1 { font-size: 1.6em; margin-bottom: 16px; }
+    label { font-weight: bold; display: block; margin-bottom: 8px; }
+    input[type="text"] { width: 100%; padding: 8px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px;}
+    .section-title { margin: 18px 0 8px 0; font-weight: bold; }
+    .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;}
+    button { padding: 10px 18px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; font-size: 1em; transition: background 0.2s;}
+    button:active { background: #1565c0; }
+    #log-list { margin-top: 24px; }
+    .log-entry { background: #e9f4fe; margin-bottom: 8px; padding: 10px; border-radius: 4px; font-size: 0.95em;}
+    .timestamp { color: #888; font-size: 0.9em; }
+    .export-btn { background: #388e3c; margin-top: 18px; }
+    .export-btn:active { background: #2e7031; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Floor Check Log</h1>
+  <label for="team-member">Team Member</label>
+  <input type="text" id="team-member" placeholder="Enter your name..." autocomplete="off">
+
+  <div class="section-title">Cinemas</div>
+  <div class="button-group" id="cinema-btns"></div>
+
+  <div class="section-title">Bathrooms</div>
+  <div class="button-group" id="bathroom-btns"></div>
+
+  <button class="export-btn" id="export-btn">Export Log (CSV)</button>
+
+  <div id="log-list"></div>
+</div>
+
+<script>
+const cinemas = ['Vmax', 'Screen X', 'Cinema 3', 'Cinema 4', 'Cinema 5', 'Cinema 6', 'Cinema 7', 'Cinema 8'];
+const bathrooms = ['Male bathroom', 'Female bathroom', 'Access bathroom'];
+const logKey = 'floorCheckLog';
+
+function loadLogs() {
+  try {
+    return JSON.parse(localStorage.getItem(logKey)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLogs(logs) {
+  localStorage.setItem(logKey, JSON.stringify(logs));
+}
+
+function addLogEntry(name, location) {
+  const now = new Date();
+  const logEntry = {
+    name,
+    location,
+    timestamp: now.toLocaleString(),
+    iso: now.toISOString()
+  };
+  const logs = loadLogs();
+  logs.unshift(logEntry); // newest on top
+  saveLogs(logs);
+  renderLogs();
+}
+
+function renderLogs() {
+  const logs = loadLogs();
+  const logList = document.getElementById('log-list');
+  logList.innerHTML = '<h3>Log for Today</h3>' + (logs.length === 0 ? '<div>No entries yet.</div>' : '');
+  logs.forEach(entry => {
+    logList.innerHTML += `
+      <div class="log-entry">
+        <strong>${entry.name}</strong> checked <strong>${entry.location}</strong>
+        <span class="timestamp">(${entry.timestamp})</span>
+      </div>
+    `;
+  });
+}
+
+function makeButtons(arr, parentId, type) {
+  const parent = document.getElementById(parentId);
+  arr.forEach(item => {
+    const btn = document.createElement('button');
+    btn.textContent = item;
+    btn.onclick = () => {
+      const name = document.getElementById('team-member').value.trim();
+      if (!name) {
+        alert('Please enter your name.');
+        return;
+      }
+      addLogEntry(name, item);
+    };
+    parent.appendChild(btn);
+  });
+}
+
+// Export log as CSV
+function exportLogCSV() {
+  const logs = loadLogs();
+  if (logs.length === 0) {
+    alert('No log entries to export.');
+    return;
+  }
+  const header = ['Name', 'Location', 'Timestamp (local)', 'Timestamp (ISO)'];
+  const rows = logs.map(l => [l.name, l.location, l.timestamp, l.iso]);
+  const csv = [header, ...rows].map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(',')).join('\n');
+
+  // Download as CSV
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `floor_check_log_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Setup
+makeButtons(cinemas, 'cinema-btns', 'cinema');
+makeButtons(bathrooms, 'bathroom-btns', 'bathroom');
+renderLogs();
+document.getElementById('export-btn').onclick = exportLogCSV;
+</script>
+</body>
+</html>
