@@ -20,6 +20,8 @@
     .export-btn:active { background: #2e7031; }
     .no-entries { color: #888; margin-top: 10px; }
   </style>
+  <!-- Add jsPDF from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -33,7 +35,7 @@
   <div class="section-title">Bathrooms</div>
   <div class="button-group" id="bathroom-btns"></div>
 
-  <button class="export-btn" id="export-btn">Export Log (CSV)</button>
+  <button class="export-btn" id="export-btn">Export Log (PDF)</button>
 
   <div id="log-list"></div>
 </div>
@@ -41,6 +43,7 @@
 <script>
 const cinemas = ['Vmax', 'Screen X', 'Cinema 3', 'Cinema 4', 'Cinema 5', 'Cinema 6', 'Cinema 7', 'Cinema 8'];
 const bathrooms = ['Male bathroom', 'Female bathroom', 'Access bathroom'];
+const locations = [...cinemas, ...bathrooms];
 const logKey = 'floorCheckLog';
 
 function loadLogs() {
@@ -69,7 +72,6 @@ function addLogEntry(name, location) {
   renderLogs();
 }
 
-// Only get logs for today
 function getTodayLogs() {
   const logs = loadLogs();
   const todayDate = new Date().toISOString().slice(0, 10);
@@ -111,34 +113,76 @@ function makeButtons(arr, parentId) {
   });
 }
 
-// Export log as CSV
-function exportLogCSV() {
-  const logs = loadLogs();
+// Group logs by location for PDF export
+function groupLogsByLocation(logs) {
+  const grouped = {};
+  locations.forEach(loc => { grouped[loc] = []; });
+  logs.forEach(entry => {
+    if (grouped[entry.location]) {
+      grouped[entry.location].push(entry);
+    }
+  });
+  return grouped;
+}
+
+// Export log as PDF
+function exportLogPDF() {
+  const logs = getTodayLogs();
   if (logs.length === 0) {
     alert('No log entries to export.');
     return;
   }
-  const header = ['Name', 'Location', 'Timestamp (local)', 'Timestamp (ISO)'];
-  const rows = logs.map(l => [l.name, l.location, l.timestamp, l.iso]);
-  const csv = [header, ...rows].map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const grouped = groupLogsByLocation(logs);
 
-  // Download as CSV
-  const blob = new Blob([csv], {type: 'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `floor_check_log_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // jsPDF setup
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  let y = 16;
+  doc.setFontSize(18);
+  doc.text('Floor Check Log', 14, y);
+  y += 10;
+  doc.setFontSize(12);
+  doc.text('Date: ' + new Date().toLocaleDateString(), 14, y);
+  y += 8;
+
+  locations.forEach(loc => {
+    const entries = grouped[loc];
+    doc.setFont(undefined, 'bold');
+    doc.text(loc, 14, y);
+    doc.setFont(undefined, 'normal');
+    y += 7;
+
+    if (entries.length === 0) {
+      doc.setTextColor(150);
+      doc.text('No entries', 18, y);
+      doc.setTextColor(0);
+      y += 7;
+    } else {
+      entries.forEach(entry => {
+        doc.text(`${entry.name} (${entry.timestamp})`, 18, y);
+        y += 7;
+        if (y > 278) { // Prevent writing below bottom margin
+          doc.addPage();
+          y = 16;
+        }
+      });
+    }
+    y += 4;
+    if (y > 278) {
+      doc.addPage();
+      y = 16;
+    }
+  });
+
+  doc.save(`floor_check_log_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 // Setup
 makeButtons(cinemas, 'cinema-btns');
 makeButtons(bathrooms, 'bathroom-btns');
 renderLogs();
-document.getElementById('export-btn').onclick = exportLogCSV;
+document.getElementById('export-btn').onclick = exportLogPDF;
 </script>
 </body>
 </html>
