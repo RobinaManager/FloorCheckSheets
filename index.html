@@ -60,10 +60,11 @@ function saveLogs(logs) {
 
 function addLogEntry(name, location) {
   const now = new Date();
+  // Only keep time in local format (no date)
   const logEntry = {
     name,
     location,
-    timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
     iso: now.toISOString()
   };
   const logs = loadLogs();
@@ -78,19 +79,18 @@ function getTodayLogs() {
   return logs.filter(entry => entry.iso.slice(0, 10) === todayDate);
 }
 
-// For displaying: group logs by location, avoid duplicate names, show only time per check
+// Group logs by location, unique names, times for each name (only time, no date)
 function groupLogsForDisplay(logs) {
   const grouped = {};
   locations.forEach(loc => { grouped[loc] = []; });
   logs.forEach(entry => {
     if (grouped[entry.location]) {
-      // If name is already listed for this location, skip
-      if (!grouped[entry.location].some(e => e.name === entry.name)) {
-        grouped[entry.location].push({ name: entry.name, times: [entry.timestamp] });
+      // If name is already listed for this location, push time to their times array
+      let person = grouped[entry.location].find(e => e.name === entry.name);
+      if (!person) {
+        grouped[entry.location].push({ name: entry.name, times: [entry.time] });
       } else {
-        // Add time to the name's times array
-        const person = grouped[entry.location].find(e => e.name === entry.name);
-        person.times.push(entry.timestamp);
+        person.times.push(entry.time);
       }
     }
   });
@@ -100,8 +100,7 @@ function groupLogsForDisplay(logs) {
 function renderLogs() {
   const logs = getTodayLogs();
   const logList = document.getElementById('log-list');
-  const todayStr = new Date().toLocaleDateString();
-  logList.innerHTML = `<h3>Log for Today - ${todayStr}</h3>`;
+  logList.innerHTML = `<h3>Log for Today</h3>`;
   if (logs.length === 0) {
     logList.innerHTML += '<div class="no-entries">No entries yet.</div>';
     return;
