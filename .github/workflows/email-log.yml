@@ -1,0 +1,32 @@
+name: Daily Floor Check Log PDF Email
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  export-and-email:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm install pdfkit nodemailer
+
+    - name: Generate PDF from JSON
+      run: node .github/scripts/generate-pdf.js
+
+    - name: Send PDF via Email
+      env:
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      run: node .github/scripts/send-pdf.js
