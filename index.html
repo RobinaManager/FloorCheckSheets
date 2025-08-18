@@ -63,7 +63,7 @@ function addLogEntry(name, location) {
   const logEntry = {
     name,
     location,
-    timestamp: now.toLocaleTimeString(), // Only time
+    timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     iso: now.toISOString()
   };
   const logs = loadLogs();
