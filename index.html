@@ -243,7 +243,7 @@ function exportLogPDF() {
         logList.innerHTML += `<span>${latestName}: <span class="timestamp">${times.join(', ')}</span></span><br>`;
       }
  
-      // Output other loggers, each entry as grouped times (reverse chronological)
+      // Output other loggers, each entry as a seperate line (reverse chronological)
       otherEntries.forEach(entry => {
         logList.innerHTML += `<span>${entry.name}: <span class="timestamp">${entry.time}</span></span><br>`;
       });
