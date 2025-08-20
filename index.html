@@ -23,10 +23,17 @@
     }
     button:active { background: #333; } /* Slightly lighter when pressed */
     #log-list { margin-top: 24px; }
-    .log-entry { background: #e9f4fe; margin-bottom: 8px; padding: 10px; border-radius: 4px; font-size: 0.95em;}
+    /* Make log bubbles grey */
+    .log-entry { background: #e0e0e0; margin-bottom: 8px; padding: 10px; border-radius: 4px; font-size: 0.95em;}
     .timestamp { color: #888; font-size: 0.9em; }
-    .export-btn { background: #000; margin-top: 18px; color: #fff; }
-    .export-btn:active { background: #333; }
+    /* Make export button grey and distinguish from normal buttons */
+    .export-btn { 
+      background: #888; 
+      margin-top: 18px; 
+      color: #fff; 
+      transition: background 0.2s;
+    }
+    .export-btn:active { background: #aaa; }
     .no-entries { color: #888; margin-top: 10px; }
   </style>
   <!-- Add jsPDF from CDN -->
