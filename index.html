@@ -226,32 +226,44 @@ function renderLogs() {
   }
 
   locations.forEach(loc => {
-    // Filter logs for this location
-    const entries = logs.filter(entry => entry.location === loc);
+    const entries = logs
+      .filter(entry => entry.location === loc)
+      .sort((a, b) => new Date(b.iso) - new Date(a.iso)); // newest first
+
     logList.innerHTML += `<div class="log-entry"><strong>${loc}</strong><br>`;
 
     if (entries.length === 0) {
       logList.innerHTML += '<span class="timestamp">No entries</span>';
     } else {
-      // Group all entries by name
-      const groupedByName = {};
-      entries.forEach(entry => {
-        if (!groupedByName[entry.name]) {
-          groupedByName[entry.name] = [];
-        }
-        groupedByName[entry.name].push(entry.time);
-      });
+      let currentName = null;
+      let currentTimes = [];
 
-      // Render grouped entries
-      for (const [name, times] of Object.entries(groupedByName)) {
-        logList.innerHTML += `<span>${name}: <span class="timestamp">${times.join(', ')}</span></span><br>`;
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+
+        if (entry.name !== currentName) {
+          // Output previous group if exists
+          if (currentName !== null) {
+            logList.innerHTML += `<span>${currentName}: <span class="timestamp">${currentTimes.join(', ')}</span></span><br>`;
+          }
+          // Start new group
+          currentName = entry.name;
+          currentTimes = [entry.time];
+        } else {
+          // Same person as last, group times
+          currentTimes.push(entry.time);
+        }
+      }
+
+      // Output the final group
+      if (currentName !== null) {
+        logList.innerHTML += `<span>${currentName}: <span class="timestamp">${currentTimes.join(', ')}</span></span><br>`;
       }
     }
 
     logList.innerHTML += `</div>`;
   });
 }
-
 
 // Setup
 makeButtons(cinemas, 'cinema-btns');
