@@ -215,42 +215,43 @@ function exportLogPDF() {
   doc.save(`floor_check_log_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-  function renderLogs() {
+function renderLogs() {
   const logs = getTodayLogs();
   const logList = document.getElementById('log-list');
   logList.innerHTML = `<h3>Log for Today</h3>`;
+
   if (logs.length === 0) {
     logList.innerHTML += '<div class="no-entries">No entries yet.</div>';
     return;
   }
- 
+
   locations.forEach(loc => {
-    // Filter logs for this location, newest first
+    // Filter logs for this location
     const entries = logs.filter(entry => entry.location === loc);
     logList.innerHTML += `<div class="log-entry"><strong>${loc}</strong><br>`;
+
     if (entries.length === 0) {
       logList.innerHTML += '<span class="timestamp">No entries</span>';
     } else {
-      // Find the name of the most recent logger in this location
-      const latestName = entries[0].name;
-      // Gather all logs by this person
-      const latestPersonEntries = entries.filter(e => e.name === latestName);
-      const otherEntries = entries.filter(e => e.name !== latestName);
- 
-      // Output the latest logger's grouped times (reverse chronological)
-      if (latestPersonEntries.length > 0) {
-        const times = latestPersonEntries.map(e => e.time);
-        logList.innerHTML += `<span>${latestName}: <span class="timestamp">${times.join(', ')}</span></span><br>`;
-      }
- 
-      // Output other loggers, each entry as a seperate line (reverse chronological)
-      otherEntries.forEach(entry => {
-        logList.innerHTML += `<span>${entry.name}: <span class="timestamp">${entry.time}</span></span><br>`;
+      // Group all entries by name
+      const groupedByName = {};
+      entries.forEach(entry => {
+        if (!groupedByName[entry.name]) {
+          groupedByName[entry.name] = [];
+        }
+        groupedByName[entry.name].push(entry.time);
       });
+
+      // Render grouped entries
+      for (const [name, times] of Object.entries(groupedByName)) {
+        logList.innerHTML += `<span>${name}: <span class="timestamp">${times.join(', ')}</span></span><br>`;
+      }
     }
+
     logList.innerHTML += `</div>`;
   });
 }
+
 
 // Setup
 makeButtons(cinemas, 'cinema-btns');
