@@ -265,6 +265,69 @@ function renderLogs() {
   });
 }
 
+function exportLogPDF() {
+  const logs = getTodayLogs();
+  if (logs.length === 0) {
+    alert('No log entries to export.');
+    return;
+  }
+  const grouped = groupLogsForDisplay(logs);
+ 
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+ 
+  let y = 16;
+  const leftMargin = 14;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const usableWidth = pageWidth - leftMargin - 10; // leave a margin on the right
+ 
+  doc.setFontSize(18);
+  doc.text('Floor Check Log', leftMargin, y);
+  y += 10;
+  doc.setFontSize(12);
+  doc.text('Date: ' + new Date().toLocaleDateString(), leftMargin, y);
+  y += 8;
+ 
+  locations.forEach(loc => {
+    const entries = grouped[loc];
+    doc.setFont(undefined, 'bold');
+    doc.text(loc, leftMargin, y);
+    doc.setFont(undefined, 'normal');
+    y += 7;
+ 
+    if (entries.length === 0) {
+      doc.setTextColor(150);
+      doc.text('No entries', leftMargin + 4, y);
+      doc.setTextColor(0);
+      y += 7;
+    } else {
+      entries.forEach(person => {
+        let line = `${person.name}`;
+        if (person.times.length > 0) {
+          line += `: ${person.times.join(', ')}`;
+        }
+        // Wrap the line using splitTextToSize
+        const wrappedLines = doc.splitTextToSize(line, usableWidth);
+        wrappedLines.forEach(wrappedLine => {
+          doc.text(wrappedLine, leftMargin + 4, y);
+          y += 7;
+          if (y > doc.internal.pageSize.getHeight() - 16) { // Prevent writing below bottom margin
+            doc.addPage();
+            y = 16;
+          }
+        });
+      });
+    }
+    y += 4;
+    if (y > doc.internal.pageSize.getHeight() - 16) {
+      doc.addPage();
+      y = 16;
+    }
+  });
+ 
+  doc.save(`floor_check_log_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
 // Setup
 makeButtons(cinemas, 'cinema-btns');
 makeButtons(bathrooms, 'bathroom-btns');
