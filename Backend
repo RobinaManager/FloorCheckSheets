@@ -123,3 +123,4 @@ cron.schedule('30 1 * * *', () => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+node server.js
