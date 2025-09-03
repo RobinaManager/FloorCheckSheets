@@ -1,0 +1,125 @@
+floorcheck-backend/
+├── logs.json         ← stores the logs
+├── server.js         ← main server
+[]
+const express = require('express');
+const fs = require('fs');
+const PDFDocument = require('pdfkit');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+const LOG_FILE = 'logs.json';
+const MANAGER_EMAIL = 'buggfin04@gmail.com';
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// Load logs from file
+function loadLogs() {
+  try {
+    const data = fs.readFileSync(LOG_FILE);
+    return JSON.parse(data);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Save logs to file
+function saveLogs(logs) {
+  fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+}
+
+// POST endpoint to receive logs
+app.post('/api/log', (req, res) => {
+  const logs = loadLogs();
+  logs.push(req.body);
+  saveLogs(logs);
+  res.status(200).send({ message: 'Log saved' });
+});
+
+// GET today's logs
+app.get('/api/logs/today', (req, res) => {
+  const logs = loadLogs();
+  const today = new Date().toISOString().slice(0, 10);
+  const todaysLogs = logs.filter(log => log.date === today);
+  res.json(todaysLogs);
+});
+
+// 🕐 CRON: Run at 1:30 AM daily
+cron.schedule('30 1 * * *', () => {
+  const logs = loadLogs();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yLogs = logs.filter(log => log.date === yesterday);
+
+  if (yLogs.length === 0) return console.log('No logs for yesterday');
+
+  const pdfPath = `floor_log_${yesterday}.pdf`;
+  const doc = new PDFDocument();
+  doc.pipe(fs.createWriteStream(pdfPath));
+
+  doc.fontSize(18).text('Floor Check Log', { align: 'center' });
+  doc.moveDown();
+  doc.fontSize(12).text(`Date: ${yesterday}`);
+  doc.moveDown();
+
+  const grouped = {};
+
+  yLogs.forEach(entry => {
+    if (!grouped[entry.location]) grouped[entry.location] = [];
+    grouped[entry.location].push(`${entry.name} at ${entry.time}`);
+  });
+
+  Object.entries(grouped).forEach(([location, entries]) => {
+    doc.font('Helvetica-Bold').text(location);
+    doc.font('Helvetica');
+    entries.forEach(e => doc.text(`- ${e}`));
+    doc.moveDown();
+  });
+
+  doc.end();
+
+  doc.on('finish', () => {
+    // Send email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'buggfin04@gmail.com',          
+        pass: 'Terrain113'              
+      }
+    });
+
+    const mailOptions = {
+      from: 'buggfin04@gmail.com',
+      to: MANAGER_EMAIL,
+      subject: `Floor Check Log - ${yesterday}`,
+      text: `Attached is the floor check log for ${yesterday}.`,
+      attachments: [
+        {
+          filename: `floor_log_${yesterday}.pdf`,
+          path: `./${pdfPath}`
+        }
+      ]
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error('Email failed:', err);
+      } else {
+        console.log('Email sent:', info.response);
+        // Delete yesterday’s logs
+        const remainingLogs = logs.filter(log => log.date !== yesterday);
+        saveLogs(remainingLogs);
+        fs.unlinkSync(pdfPath); // delete the PDF after sending
+      }
+    });
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
