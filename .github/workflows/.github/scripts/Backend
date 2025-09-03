@@ -1,0 +1,4 @@
+mkdir floorcheck-backend
+cd floorcheck-backend
+npm init -y
+npm install express node-cron pdfkit nodemailer body-parser cors
